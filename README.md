@@ -9,10 +9,23 @@ it further allows you explore a document using Artificial intelligence finally i
 3. Node.js
 4. Redis
 5. LangGraph
-6. Websockets
+6. Ollama
+7. Websockets
 
 ### Getting Started
 clone github repository
+
+#### Setup
+	settup ollama locally with any model of your choice
+	
+	create an account with google ai studio and get an API token for gemma
+	
+	create an .env file in the AI folder
+	
+	paste the following code in the file
+	```GOOGLE_API_KEY=API-OF-GEMMA-LLM ```
+
+	install docker desktop for windows and start up a redis container running on the default port
 
 make sure you have python(3.12 precisely) and node installed on your machine
 
