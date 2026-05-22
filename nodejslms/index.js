@@ -40,10 +40,10 @@ socketIo.on('connection', (socket)=>{
             id:socket.id,
         }
         
-        if (owner == true){
-            const owner_check = connected_owners.find(user=>user.username == username & user.groupname == groupname);
+        if (owner === true){
+            const owner_check = connected_owners.find(user => user.username === username && user.groupname === groupname);
             if (owner_check != undefined){
-                connected_owners = connected_owners.filter((users)=>{users.username != username & users.groupname != groupname})
+                connected_owners = connected_owners.filter((users) => users.username !== username && users.groupname !== groupname);
                 connected_owners.push(newuser);
             }else{
                 socket.join(groupname);
@@ -95,7 +95,7 @@ socketIo.on('connection', (socket)=>{
     // Handle disconnection
     socket.on('disconnect', () => {
        const owner = connected_owners.find(user => {
-            user.id ==socket.id;
+            user.id === socket.id;
        });
 
         if(owner != undefined){

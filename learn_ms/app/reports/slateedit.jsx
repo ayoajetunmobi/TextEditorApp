@@ -1,16 +1,16 @@
 "use client"
 // Import React dependencies.
 import { useCallback, useState, useMemo, useSyncExternalStore, useEffect } from 'react';
-// Import the Slate editor factory.
+
 // Import the Slate components and React plugin.
 import { BaseEditor, NodeEntry, createEditor, Descendant,Editor,Range, Node, Transforms,Text, Element} from 'slate';
 import { Slate, ReactEditor, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 import Toolbar from "./toolbar";
 import {SubcribeToStore} from "../useSyncstore";
+import { slateToHtml } from '@slate-serializers/html'
 
-
-export default function Mycomponent(sendtext){
+export default function Mycomponent({sendtext,init}){
     const [sender, setSender] = useState(false);
     const [readonly,setReadonly]= useState(false);
     const [dataeditted,setDataEditted] = useState([]);
@@ -21,14 +21,15 @@ export default function Mycomponent(sendtext){
     }
     let editor = useMemo(() => withReact(withHistory(createEditor())), []);
     const [editorKey, setEditorKey] = useState(Date.now());
-    const [initialValue, setInitialvalue]= useState(
-      [
-        {
-          type: 'paragraph',
-          children: [{ text: "write here" }],
-        },
-      ]
-    )
+    const initial = [
+      {
+        type: 'paragraph',
+        children: [{ text: "write here" }],
+      },
+    ]
+    const [initialValue, setInitialvalue]= useState(init == ""? initial: JSON.parse(init))
+      
+  
     const subscribe = useSyncExternalStore(SubcribeToStore.subscribe, SubcribeToStore.getSnapshot,SubcribeToStore.getSnapshot);
     const subscribe_get = useSyncExternalStore(SubcribeToStore.subscribe, SubcribeToStore.getView,SubcribeToStore.getView);
     const sub_get_changes = useSyncExternalStore(SubcribeToStore.subscribe, SubcribeToStore.getData,SubcribeToStore.getData);
@@ -80,6 +81,7 @@ export default function Mycomponent(sendtext){
       //   })
       // );
       // console.log(paragraphs)
+
       let others="others"
       data1.forEach((ops)=>{
           ops.forEach((opsdata)=>{
@@ -106,18 +108,19 @@ export default function Mycomponent(sendtext){
               }
           })
       })
-      console.log(paragraphss,"paragraphs")
+
+   
       if(data1.length > 0){
         try{
           console.log(data1,"trying to add again")
             data.push(
-              <div key={datagotten["id"]} id={datagotten["id"]} className="border-[1px] p-5 mb-3 rounded-[12px] overflow-x-hidden w-[350px] overflow-y-auto h-fit max-h-[300px]">
+              <div key={datagotten["id"]} id={datagotten["id"]} className="border p-5 mb-3 rounded-[12px] overflow-x-hidden w-[350px] overflow-y-auto h-fit max-h-[300px]">
                 <p>{datagotten["id"]}</p>
                 <div className="mb-5 max-h-[150px] h-fit overflow-y-auto">
                     {paragraphss} 
                 </div>
                 <p className={`p-2 bg-${datagotten["color"]}-600`}> {datagotten.username} </p>
-                <div className="flex justify-around border-[1px] p-2 rounded-[10px]">
+                <div className="flex justify-around border p-2 rounded-[10px]">
                     <button onClick={()=>{applychanges(datagotten["id"],data1)}} className="p-2 cursor-pointer bg-green-950 text-white rounded-[10px] font-bold"> APPLY </button>
                     <button onClick={()=>{cancelchanges(datagotten["id"],data1)}} className="p-2 cursor-pointer bg-black text-white rounded-[10px] font-bold"> CANCEL </button>
                 </div>
@@ -127,8 +130,7 @@ export default function Mycomponent(sendtext){
           console.log(err)
         }
       }
-    
-      console.log(data1,"only masters ++++++++++++++++++++++++")      
+         
       data1.forEach((operation)=>{
           decorate(operation,datagotten["color"],true)
         }
@@ -140,8 +142,6 @@ export default function Mycomponent(sendtext){
           // setDataEditted(prev=>[...prev,...data_pass])
       }
     },[sub_get_changes])
-
-    console.log(suggestions,"outside")
 
     function applychanges(id,data){
       // setDataEditted(prev=>[...prev,...data])
@@ -180,7 +180,7 @@ export default function Mycomponent(sendtext){
           })
       })
 
-      let new_suggestion = SubcribeToStore.getSuggest().filter(items=> parseInt(items.key) != parseInt(id))
+    let new_suggestion = SubcribeToStore.getSuggest().filter(items=> parseInt(items.key) != parseInt(id))
       SubcribeToStore.removsuggest();
       new_suggestion.forEach(e=>SubcribeToStore.suggestion(e))
       setSuggestions([...SubcribeToStore.getSuggest()])
@@ -203,17 +203,23 @@ export default function Mycomponent(sendtext){
     },[subscribe])
 
     useEffect(()=>{
-      if(subscribe_get != undefined){
-        console.log(subscribe_get);
-        let data_gotten = JSON.parse(subscribe_get["msg"]);
-        Transforms.deselect(editor);
-        setInitialvalue(data_gotten);
-        setEditorKey(Date.now())
+      if(subscribe_get != undefined && subscribe_get["msg"]){
+        try {
+          let data_gotten = JSON.parse(subscribe_get["msg"]);
+          // Only update if we're NOT the owner (owner controls the editor)
+          if(subscribe[0][0]?.owner === false) {
+            Transforms.deselect(editor);
+            setInitialvalue(data_gotten);
+            setEditorKey(Date.now())
+          }
+        } catch(e) {
+          console.log("Error parsing editor state:", e);
+        }
       }
     },[subscribe_get])
 
     function send_msg(data){
-      sendtext.sendtext(data,true,[]);
+      sendtext(data,true,[]);
       // const paragraphs = Array.from(
       //   Editor.nodes(editor, {
       //     at: [], // Search the entire document
@@ -223,9 +229,37 @@ export default function Mycomponent(sendtext){
       // console.log(paragraphs)
     }
 
+    const saveToPdf = async()=>{
+      const editorTree = editor.children
+
+      // const opt  = {
+      //   margin:       1.1,
+      //   jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      // };
+      // html2pdf().set(opt).from(html).toPdf().save("myfile")
+
+      const html = slateToHtml(editorTree)
+      const req= await fetch("http://127.0.0.1:5000/rest/convert_to_down_doc",{
+            method:"POST",
+            headers:{
+                "Accept":"*/*",
+                "Content-Type":"application/json"
+            },
+            body: JSON.stringify({data:{type:"html",doc:html}})
+        })
+        const response = await req.blob();
+        console.log(response)
+        const url = window.URL.createObjectURL(response);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "filename.pdf" // Suggest a name for the file
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
     function send_edits(){
       // const data = Array.from(Node.texts(editor));
-      console.log("clicked")
       sendtext.sendtext([],false,myoperations);
       setOperations([]) 
     }
@@ -264,13 +298,23 @@ export default function Mycomponent(sendtext){
     return(
       <div>
         { subscribe.length > 0 && subscribe[0][0].owner == false ?
-        <button onClick={()=>send_edits()} className='ml-10 p-1 rounded-[10px] text-white relative bg-green-700'> publish </button>
-        : 
-        null
+          <button onClick={()=>send_edits()} className='ml-10 p-1 rounded-[10px] text-white relative bg-green-700'> publish </button>
+          : 
+          null
         }
-        
-        {/*                                    put in onchange to get all operations const {operations}=editor; console.log(operations) */}
-        <Slate key= {editorKey} editor={editor} initialValue={initialValue} onChange={newValue=>{const {operations}=editor;subscribe[0][0].owner == false?setOperations(prev=>[...prev,operations]):null; console.log(operations);send_msg(newValue)}} >
+
+        <button onClick={()=>{saveToPdf()}} className="ml-[76%] p-2 bg-amber-500 rounded-[10px] text-white cursor-pointer"> save </button>
+        {/* put in onchange to get all operations const {operations}=editor; console.log(operations) */}
+        <Slate key= {editorKey} editor={editor} initialValue={initialValue} onChange={newValue=>{
+          const {operations}=editor;
+          if(subscribe[0][0]?.owner === false){
+            setOperations(prev=>[...prev,operations]);
+          } else {
+            send_msg(newValue);
+          }
+          console.log(operations);
+        }} >
+
           <Toolbar readOnlyFunc={toogleReadonly} />
           <Editable
             // autoFocus={true}
@@ -293,7 +337,7 @@ export default function Mycomponent(sendtext){
           :null
         }
       </div>
-   )
+  )
 }
 
 // Define a React component renderer for our code blocks.
@@ -323,30 +367,29 @@ const Imagediv = (props) => {
 }
 
 const Linkx = ({ attributes, element, children }) =>{
-return(
-  <a onClick={(e)=>{window.open(`${element.href}`, "_blank");}} style={{color:"blue",cursor:"pointer"}} {...attributes} href={element.href}>
-    {children}
-  </a>
-   
-);
+  return(
+    <a onClick={(e)=>{window.open(`${element.href}`, "_blank");}} style={{color:"blue",cursor:"pointer"}} {...attributes} href={element.href}>
+      {children}
+    </a> 
+  );
 }
 
 
 //inside Editable
- // renderElement={renderElement}
-          //   onKeyDown={event => {
-          //   if (event.key === '`' && event.ctrlKey) {
-          //     console.log("yes")
-          //     event.preventDefault()
-          //     // Determine whether any of the currently selected blocks are code blocks.
-          //     const [match] = Editor.nodes(editor, {
-          //       match: n => n.type==='code',
-          //     })
-          //     // Toggle the block type depending on whether there's already a match.
-          //     Transforms.setNodes(
-          //       editor,
-          //       { type: match ? 'paragraph' : 'code' },
-          //       { match: n => Element.isElement(n) && Editor.isBlock(editor, n) }
-          //     )
-          //   }
-          // }}
+// renderElement={renderElement}
+//   onKeyDown={event => {
+//   if (event.key === '`' && event.ctrlKey) {
+//     console.log("yes")
+//     event.preventDefault()
+//     // Determine whether any of the currently selected blocks are code blocks.
+//     const [match] = Editor.nodes(editor, {
+//       match: n => n.type==='code',
+//     })
+//     // Toggle the block type depending on whether there's already a match.
+//     Transforms.setNodes(
+//       editor,
+//       { type: match ? 'paragraph' : 'code' },
+//       { match: n => Element.isElement(n) && Editor.isBlock(editor, n) }
+//     )
+//   }
+// }}

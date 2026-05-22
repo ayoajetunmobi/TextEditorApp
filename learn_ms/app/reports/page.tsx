@@ -1,10 +1,12 @@
-import Reportspage from "./reports"
+import { Home } from "./home"
+
+
 export default function Reports(){
    return(
-    <>
+    <div className="h-screen w-full overflow-hidden">
         <br />
         <br />
-        <Reportspage/>     
-    </>
+        <Home />     
+    </div>
    )
 }

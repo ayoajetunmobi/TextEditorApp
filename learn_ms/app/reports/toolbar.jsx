@@ -68,8 +68,8 @@ export default function Toolbar(readOnlyFunc){
 
     const returnLink = (editor,name) => {
             const [match] = Editor.nodes(editor, {
-            match: n => Text.isText(n),
-            universal: true,
+                match: n => Text.isText(n),
+                universal: true,
             });
            
         // return match[0].text.toString()
@@ -226,6 +226,35 @@ export default function Toolbar(readOnlyFunc){
 
     // }
 
+    const InsertAiText = async()=>{
+        const selectedText = Editor.string(editor, editor.selection);
+        const loader = window.document.getElementById("slateLoader");
+        loader.style.display= "block"
+        if(selectedText != null){
+            console.log(selectedText)
+            const req = await fetch("http://127.0.0.1:5000/rest/improve_text",{
+                method:"POST",
+                headers:{
+                    "Accept":"*/*",
+                    "Content-Type": "application/json" 
+                },
+                body:JSON.stringify({data:String(selectedText)})
+            })
+            const response = await req.json()
+
+            const newNode = {
+                type: 'paragraph', // Or 'code-block', etc.
+                children: [{ text: String(response["messages"][0]["content"]) }],
+            };
+
+            Transforms.insertNodes(editor, newNode, {
+                at: editor.selection,
+                mode: 'highest', // Ensures it replaces the block
+            });
+        }
+        loader.style.display= "none"
+    }
+
     
     const insertImg = (editor, url) => {
         const text = { text: '' }
@@ -240,7 +269,7 @@ export default function Toolbar(readOnlyFunc){
     }
     return(
         <>            
-          <div className='flex gap-4 justify-center border-[1px] flex-wrap border-gray-300 border-b-[0px] p-3 bg-gray-50 w-full'>
+          <div className='flex gap-4 justify-center border flex-wrap border-gray-300 border-b p-3 bg-gray-50 w-full'>
                 <form onSubmit={(e)=>{e.preventDefault(); toggleFontSize(editor,'fontFamily',fontsizeinp.current.value); }} className='w-40'>
                     <select onChange={(e)=>{toggleFontSize(editor,'fontFamily',e.target.value); fontsizeinp.current.value=e.target.value }} className='text-sm bg-gray-200 p-1 rounded-[3px] absolute'>
                         {fontFamily.map((e,i)=><option key={i} value={e}>{e}</option>)}
@@ -329,7 +358,7 @@ export default function Toolbar(readOnlyFunc){
                     <select onChange={(e)=>{toggleFontSize(editor,'fontSize',e.target.value+"px"); fontsizeinp.current.value=e.target.value }} className='text-sm bg-gray-200 p-1 rounded-[3px] absolute' name="fontsize" id="fontsize">
                         {fontsize.map((e,i)=><option key={i} value={e}>{e}px</option>)}
                     </select>
-                    <input  ref={fontsizeinp} min={1} className='absolute border-1  w-9  bg-white z-1' type="number"  name="fontsizeTxt" id="fontsizetxt" />
+                    <input  ref={fontsizeinp} min={1} className='absolute border  w-9  bg-white z-1' type="number"  name="fontsizeTxt" id="fontsizetxt" />
                 </form>
 
              <button className='pl-8' title='url link'>
@@ -352,9 +381,11 @@ export default function Toolbar(readOnlyFunc){
                 className='cursor-pointer'
             />    
             </button>
-            <button title='Artificial intelligence' className='cursor-pointer'>    
+
+            <button onClick={()=>{InsertAiText()}} title='Artificial intelligence' className='cursor-pointer'>    
                 <span className='text-blue-700 font-bold'>A</span><span>i</span>
             </button>
+            <div id='slateLoader' className='loader hidden'></div>
           </div>
           
           <form  action="">
