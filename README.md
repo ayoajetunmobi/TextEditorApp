@@ -9,7 +9,7 @@ head over to browser and interact with the application.
 [![LangGraph](https://img.shields.io/badge/LangGraph-FF6F00?style=for-the-badge&logo=chainlink&logoColor=white)](https://www.langchain.com/langgraph)
 [![Gemini LLM](https://img.shields.io/badge/Gemini_LLM-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
 [![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![Plotly](https://shields.io/badge/Plotly-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://plotly.com)
+[![Plotly](https://shields.io/badge/Plotly-DC482D?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com)
 
 > **An end-to-end AI-powered document generation, Excel analytics, and visual dashboard generation platform built with FastAPI, Next.js, LangGraph, and Gemini LLM.**
 
