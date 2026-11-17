@@ -1,20 +1,18 @@
 "use client"
 import Image from "next/image";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faArrowRightToBracket,faPlus,faSearch,faStickyNote } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRightToBracket,faPlus,faSearch,faStickyNote } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {SubcribeToStore} from "../useSyncstore";
+import {XLSXVIEW} from "./xlsxview"
 
-
-import { io } from 'socket.io-client';
 import dynamic from 'next/dynamic';
 import Reportspage from "./reports";
 
 // tools to convert to slate
 import { unified } from "unified";
-import stringify from "remark-stringify";
 import markdown from "remark-parse";
-import { slateToRemark,remarkToSlate } from "remark-slate-transformer";
+import { remarkToSlate } from "remark-slate-transformer";
 import Link from "next/link";
 
 interface PdfViewerProps {
@@ -24,7 +22,6 @@ interface PdfViewerProps {
   fileexplore:()=>void;
   openEditor:(data:string)=>void
 }
-
 
 const WriteUp  = dynamic(
   () => import('./aiWriteup'),
@@ -36,7 +33,6 @@ const PdfViewer = dynamic(
   { ssr: false }
 )
 
-
 const AImodels=[
     "qwen3.5:397b-cloud",
     "qwen3.5:cloud",
@@ -46,17 +42,17 @@ const AImodels=[
     "gemma-4-31b-it"
 ]
 
-const URL_SOC = 'http://127.0.0.1:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL_5000 || 'http://127.0.0.1:5000';
 
 export const Home =()=>{
-    const [socket] = useState(() => io(URL_SOC, { autoConnect: true }));
     const [pdfViewerSec, setPdfViewerSec] = useState<boolean>(false);
+    const [Xlsxviewer, setXlsxviewer] = useState<boolean>(false);
     const [editorSec, setEditorSec] = useState<boolean>(false);
-    const [currModel,setCurrModel] = useState<string>("qwen3.5:397b-cloud");
+    const [currModel, setCurrModel] = useState<string>("qwen3.5:397b-cloud");
     const [dataTogen, setDataTogen] = useState<{type:string, query:string,
         file:string|null, aidoc:string}>({type:"",query:"", file:null, aidoc:""});
-    const aiInput = useRef<HTMLInputElement>(null)
-
+    const aiInput = useRef<HTMLInputElement>(null);
+    const [xlsxdata, Setxlsxdata] = useState<{file:File|undefined,close:()=>void,savefile:(file:File)=>void}>({file:undefined,close:()=>{},savefile:()=>{}})
     
     const [document, SetDocument]=useState<PdfViewerProps>({
         pdfUrl:null,
@@ -65,7 +61,6 @@ export const Home =()=>{
         fileexplore:()=>{},
         openEditor:(data:string)=>{}
     });
-
     const [addfile, setAddFile]=useState<{type:string,name:string,URL:string,file:File}[]>([]);
     // initial value[array of slate objects] passed to slate componet
     const [editorInit, setEditoeInit] = useState<string>("");
@@ -73,46 +68,15 @@ export const Home =()=>{
     const subscribe = useSyncExternalStore(SubcribeToStore.subscribe, 
           SubcribeToStore.getSnapshot, SubcribeToStore.getSnapshot);
 
+
     useEffect(() => {
         (window.document.getElementById("links") as HTMLElement).click()
+        if (subscribe.length === 0 || subscribe == null){
+            window.location.href = "/";
+        };
         if(subscribe[0][0]["owner"]===false){
             setEditorSec(true)
         }
-        if (subscribe.length === 0) return;
-        function onConnect() {
-            socket.emit("join-grp",{"chatid":subscribe[0][0].chatid})
-        }
-
-        function disConnect(){
-            console.log("disconnected-fastapi");
-        }
-
-        function GenerateDoc(data:any){
-            console.log(data)
-            try{
-                if(data["data"][0]["type"]){   
-                    console.log("nothing")       
-                }else{
-                    console.log("actual",data["data"])
-                    setDataTogen(prev=>({...prev, aidoc:prev.aidoc + data["data"]}))
-                }
-            }catch(err){
-                console.log("error")
-            }
-        }
-
-
-        socket.on('connect', onConnect);
-        socket.on('disconnect', disConnect);
-        socket.on('recvaidoc', GenerateDoc);
-
-        return () => {
-            socket.off('connect', onConnect);
-            socket.off('disconnect', disConnect);
-            socket.off('recvaidoc', GenerateDoc);
-            // socket.off('youjsutjoined', onYouJustJoined);
-            // socket.off('recieve_editted', onReceiveEdited);
-        };
 
     },[])
 
@@ -126,17 +90,43 @@ export const Home =()=>{
             OpSt=0;
         }   
     }
+    const sendToAi = async () => {
+        const queryText = aiInput.current?.value || "";
+        if (!queryText.trim()) return;
 
-    const sendToAi = (data:{type:string,query:string,file:null,aidoc:string})=>{
         const data_send = {
-            type:currModel,
-            query:aiInput.current?.value,
+            type: currModel,
+            query: queryText,
             chatid: subscribe[0][0].chatid
-        }
-        setDataTogen(data)
-        socket.emit("gen-ai-doc",data_send)
-    }
+        };
 
+        // Open the WriteUp drawer immediately (shows the loading spinner while aidoc is empty)
+        setDataTogen({ type: "AiDocGen", query: queryText, file: null, aidoc: "" });
+        if (aiInput.current) {
+            aiInput.current.value = "";
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/rest/gen_ai_doc`, {
+                method: "POST",
+                headers: {
+                    "Accept": "*/*",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data_send)
+            });
+
+            const result = await response.json();
+            
+            // Update state with the full generated document
+            setDataTogen(prev => ({
+                ...prev,
+                aidoc: result["aidoc"]
+            }));
+        } catch (error) {
+            console.error("Error generating AI document:", error);
+        }
+    };
     const closeAiGen = ()=>{
         setDataTogen({type:"",query:"",file:null,aidoc:""})
     }
@@ -147,7 +137,17 @@ export const Home =()=>{
         formSearchFiles.style.width="fit-content"
     }
 
-    
+    const isSpreadsheet = (fileName: string) => {
+        const lower = fileName.toLowerCase();
+        return (
+            lower.endsWith(".xlsx") ||
+            lower.endsWith(".xls")  ||
+            lower.endsWith(".xlsb") ||
+            lower.endsWith(".csv")  ||
+            lower.endsWith(".ods")
+        );
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         let exist = false
@@ -159,20 +159,48 @@ export const Home =()=>{
                 }
             })
             if(exist)return;
-            const close= ()=>{setPdfViewerSec(false);}
-            const sendToAIEx= ()=>{setDataTogen({type:"AiFilEx",query:"",file:URL.createObjectURL(selectedFile), aidoc:""});}
-            SetDocument({pdfUrl:URL.createObjectURL(selectedFile), selectedFile:selectedFile,close,fileexplore:sendToAIEx,openEditor:ConvertCurrDocToSlate});
+            const fileUrl = URL.createObjectURL(selectedFile);
             const newfile= {
                 type: selectedFile.type,
                 name: selectedFile.name,
-                URL:  URL.createObjectURL(selectedFile),
+                URL:  fileUrl,
                 file: selectedFile
             }
             setAddFile(prev=>[...prev,newfile])
+
+            if(isSpreadsheet(selectedFile.name)){
+                Setxlsxdata({
+                    file: selectedFile,
+                    close: () => { setXlsxviewer(false) },
+                    savefile: (filedata: File) => {
+                        Setxlsxdata(prev => ({ ...prev, file: filedata }));
+                        setAddFile(prev => prev.map(f => f.name === filedata.name ? { ...f, file: filedata, URL: URL.createObjectURL(filedata) } : f));
+                    }
+                });
+                setXlsxviewer(true);
+                return;
+            }
+
+            const close= ()=>{setPdfViewerSec(false);}
+            const sendToAIEx= ()=>{setDataTogen({type:"AiFilEx",query:"",file:fileUrl, aidoc:""});}
+            SetDocument({pdfUrl:fileUrl, selectedFile:selectedFile,close,fileexplore:sendToAIEx,openEditor:ConvertCurrDocToSlate});
         }
     };
 
     const OpenPdfEditor = (pdfUrl:string,selectedFile:File) =>{
+        if(isSpreadsheet(selectedFile.name)){
+            Setxlsxdata({
+                file:selectedFile,
+                close:()=>{setXlsxviewer(false)},
+                savefile:(filedata:File)=>{
+                    Setxlsxdata(prev=>({...prev,file: filedata}));
+                    setAddFile(prev => prev.map(f => f.name === filedata.name ? { ...f, file: filedata, URL: URL.createObjectURL(filedata) } : f));
+                }
+            })
+            setXlsxviewer(true)
+            console.log("clciked")
+            return
+        }
         const close = ()=>{setPdfViewerSec(false)}
         const sendToAIEx= ()=>{setDataTogen({type:"AiFilEx",query:"",file:URL.createObjectURL(selectedFile),aidoc:""});}
         SetDocument({pdfUrl:pdfUrl,selectedFile:selectedFile,close,fileexplore:sendToAIEx,openEditor:ConvertCurrDocToSlate})
@@ -206,7 +234,7 @@ export const Home =()=>{
                         <FontAwesomeIcon aria-label="gain insight on document" icon = {faPlus} className="mt-2 ml-3 font-extrabold" />
                         <input
                             type="file"
-                            accept=".pdf,.docx,.xlsx,.xls"
+                            accept=".pdf,.docx,.xlsx,.xls,.xlsb,.csv,.ods"
                             onChange={handleFileChange}
                             className="hidden"
                         />
@@ -232,13 +260,24 @@ export const Home =()=>{
                 </div>
 
                 <div className="w-full">
+                    <div>
+                        <p className="text-sm m-10">
+                            <li>
+                                This is a test project, test with small size data
+                            </li>
+                            <li>
+                                it is also ideal to make an api request to the AI after every one minute
+                            </li>
+                        </p>
+                    </div>
                     <div className="flex justify-center w-full mt-40">
                         <Image 
                             src={"/codegen.png"}
                             alt=""
-                            width={150}
-                            height={150}
+                            width={"150"}
+                            height={"150"}
                             loading="eager"
+                            unoptimized
                         >
                         </Image>
                         <h1 className="font-semibold tracking-[0.5em] mt-9 -ml-7">
@@ -291,10 +330,21 @@ export const Home =()=>{
                                 {currModel}
                             </p>
                             
-                            <form className="flex border border-zinc-300 rounded-2xl p-4 h-fit" action="">
-                                <input ref={aiInput} className="w-full outline-0" id="" placeholder="Enter a Topic" style={{ resize: "none"}} />
-                                <FontAwesomeIcon icon={faArrowRightToBracket} onClick={()=>{sendToAi({type:"AiDocGen",query:"query",file:null,aidoc:""}); aiInput.current?aiInput.current.value="":""}} className="text-2xl cursor-pointer z-5 mt-1">
-                                </FontAwesomeIcon>
+                            <form 
+                                    onSubmit={(e) => { e.preventDefault(); sendToAi(); }} 
+                                    className="flex border border-zinc-300 rounded-2xl p-4 h-fit"
+                            >
+                                <input 
+                                    ref={aiInput} 
+                                    className="w-full outline-0" 
+                                    placeholder="Enter a Topic" 
+                                    style={{ resize: "none" }} 
+                                />
+                                <FontAwesomeIcon 
+                                    icon={faArrowRightToBracket} 
+                                    onClick={() => sendToAi()} 
+                                    className="text-2xl cursor-pointer z-5 mt-1"
+                                />
                             </form>
                         </div>
                     </div>
@@ -307,6 +357,13 @@ export const Home =()=>{
                    <PdfViewer data={document} />
                 </div>
             }
+
+            {/* xlsx viewer */}
+            {Xlsxviewer && 
+                <div className="h-screen w-screen">
+                   <XLSXVIEW data={xlsxdata} />
+                </div>
+            } 
             
             {/* extra func side bar */}
             <div>

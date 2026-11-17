@@ -1,75 +1,72 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
-from aiLogic import Build_Graph
-from aiLogic import Agent_Gen, Agent_Query, Build_Keywords, Build_Chat_Graph, Build_Improve_Text
+from aiLogic import ( Agent_Gen, Agent_Query, Build_Keywords, Build_Chat_Graph, 
+                      Agent_Gen_Excel_Prompt, Build_Improve_Text, Build_Graph)
 from markitdown import MarkItDown
 import os
+import io
 import tempfile
 from fastapi.responses import FileResponse
+import pandas as pd
+from typing import Any
+
 
 os.environ["JAVA_HOME"] = r"C:\Program Files\Java\jdk-26.0.1"
 # the library to convert from .md to .xlxs and more
+
 import jpype
-import asposecells
-jpype.startJVM()
+# import asposecells
+jpype.startJVM(
+       jpype.getDefaultJVMPath(),
+    "--enable-native-access=ALL-UNNAMED"
+)
 from asposecells.api import Workbook, LoadOptions, LoadFormat, SaveFormat
 import aspose.words as aw
-
-
 import json
-import shutil
+from langgraph.checkpoint.redis.aio import AsyncRedisSaver
+from contextlib import asynccontextmanager
+
+
+import os
+import json
+from sqlalchemy import update, bindparam, MetaData, Table, create_engine, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+load_dotenv()
+import sys
+
+
 
 app = FastAPI()
-rest_app= FastAPI()
+rest_app = APIRouter()
 
 origins = [
-    "http://localhost:3000",      # React/Next.js default
-    "http://127.0.0.1:3000",     # Production domain
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://localhost:4000",
+    "https://127.0.0.1:4000",
 ]
 
-
-rest_app.add_middleware(
+app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,            # List of allowed origins
-    allow_credentials=True,           # Allow cookies and authentication headers
-    allow_methods="*",              # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers="*",              # Allow all request headers
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods="*",
+    allow_headers="*",
 )
 
-
-
-sio = socketio.AsyncServer(
-    async_mode='asgi',
-    cors_allowed_origins=['http://127.0.0.1:3000','http://localhost:3000']  # Adjust for production
-)
-
-sio_app = socketio.ASGIApp(socketio_server=sio,other_asgi_app=app, socketio_path="socket.io")
-
-
-app.mount("/socket.io/", sio_app)
-@sio.event
-async def connect(sid, environ):
-    print(f"Client connected: {sid}")
-
-@sio.on('join-grp')
-async def joingroup(sid,data):
-    await sio.enter_room(sid, data["chatid"])
-    print(f"{sid} joined {data["chatid"]}")
-  
-
-@sio.on('disconnect')
-async def disconnect(sid):
-    print(f"Client disconnected: {sid}")
-
-
-@sio.on('gen-ai-doc')
-async def handle_send_message(sid, data):
-    data_send = {"messages": [{"content":data["query"]}],"type":data["type"]}
-    await Build_Graph(data["chatid"],data_send,sio)
-    print(f"Received message: {data} from {sid}")
-    # You can emit a response back to the client here
-    # await sio.emit('response', {'status': 'Message Received'})
+# NEW: Standard POST endpoint for Document Generation
+@rest_app.post("/gen_ai_doc")
+async def generate_ai_document(data: dict):
+    data_send = {
+        "messages": [{"content": data["query"]}],
+        "type": data["type"]
+    }
+    generated_doc = await Build_Graph(data["chatid"], data_send)
+    print(generated_doc)
+    return {"aidoc": generated_doc[-1]['text']}
 
 
 @rest_app.post("/get_table_query")
@@ -92,6 +89,11 @@ async def detect_keywords(data:dict):
 @rest_app.post("/get_chat_mesg")
 async def get_chat_mesgs(data:dict):
     return_res = await Build_Chat_Graph(data["data"])
+    return return_res
+
+@rest_app.post("/improve_text")
+async def AI_improve_text(data:dict):
+    return_res = await Build_Improve_Text(data["data"])
     return return_res
 
 @rest_app.post("/convert_pdf_markup")  
@@ -177,11 +179,61 @@ async def download_doc(data:dict):
     #      os.remove(temp_file_output_path)
 
 
-@rest_app.post("/improve_text")  
+@rest_app.post("/excel_chat")  
 async def improve_text(data:dict):
-    result =await Build_Improve_Text(data["data"])
-    return result
+    # Separate headers and data
+    headers = data["data"][0]
+    raw_rows = data["data"][1:]
 
+    # Normalize every row to match the exact length of the headers
+    num_cols = len(headers)
+    data_rows = []
+    for row in raw_rows:
+        row_list = list(row)
+        if len(row_list) < num_cols:
+            # Pad shorter rows with empty strings
+            row_list.extend([""] * (num_cols - len(row_list)))
+        elif len(row_list) > num_cols:
+            # Truncate longer rows to match header count
+            row_list = row_list[:num_cols]
+        data_rows.append(row_list)
 
+    # Create the DataFrame safely
+    df = pd.DataFrame(data_rows, columns=headers)
+
+    # Get the CSV content as a string (omit the file path and index)
+    csv_string = df.to_csv(index=False)
+    data["data"]=csv_string
+
+    result = await Agent_Gen_Excel_Prompt(data)
+    try:
+        # Read using pandas (skip_blank_lines=True handles the extra line spacing)
+        formatted_result = json.loads(result[len(result)-1]["text"])
+        if formatted_result["explain_decision"] == "dashboard":
+            return formatted_result
+        
+        df_ = pd.read_csv(io.StringIO(formatted_result["formatted_data"]), skip_blank_lines=True)
+
+        # Replace NaN / infinite values with empty strings so FastAPI can serialize to JSON
+        df_ = df_.replace([float("inf"), float("-inf")], "").fillna("")
+
+        # Convert to your nested array with headers at index 0
+        nested_array = df_.to_numpy().tolist()
+        nested_array.insert(0, df_.columns.tolist())
+
+        new_obj_result = {
+            "explain_decision": formatted_result["explain_decision"],
+            "formatted_data": nested_array
+        }
+
+        print(new_obj_result)
+        return new_obj_result
+    except Exception as e:
+        print(e)
+        formatted_result = result[len(result) - 1]["text"]
+        return {"explain_decision":formatted_result, "formatted_data":[]}
+    
 app.mount("/rest", rest_app)
 
+# if __name__ == "__main__":
+#     asyncio.run(employee_graph())

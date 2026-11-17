@@ -14,6 +14,8 @@ import remarkGfm from 'remark-gfm';
 // Set up the PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
+const API_URL_5000 = process.env.NEXT_PUBLIC_API_URL_5000 || 'http://127.0.0.1:5000';
+
 const exportType=[
     {type:"word",src:"logo2.png"},{type:"excel",src:"logo1.png"},{type:"pdf",src:"pdf.png"},
 ]
@@ -99,7 +101,7 @@ export default function WriteUp (data:{genData:{ type:string; query:string; file
         }
 
         //call function to get Aichat
-        const request = await fetch('http://127.0.0.1:5000/rest/get_chat_mesg',{
+        const request = await fetch(`${API_URL_5000}/rest/get_chat_mesg`,{
             method : "POST",
             headers:{
                 "Accept": "*/*",
@@ -121,7 +123,7 @@ export default function WriteUp (data:{genData:{ type:string; query:string; file
     }
 
     const downloadDoc = async(type:string,doc:string)=>{
-        const req= await fetch("http://127.0.0.1:5000/rest/convert_to_down_doc",{
+        const req= await fetch(`${API_URL_5000}/rest/convert_to_down_doc`,{
             method:"POST",
             headers:{
                 "Accept":"*/*",

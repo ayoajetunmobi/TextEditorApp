@@ -1,23 +1,22 @@
 'use client'
-import { use, useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { io } from 'socket.io-client';
 import { SubcribeToStore } from "../useSyncstore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import dynamic from 'next/dynamic';
 
-
 const Mycomponent = dynamic(
   () => import('../reports/slateedit'),
   { ssr: false }
-)
-const URL_ =  'http://127.0.0.1:8000';
+);
+const URL_ = process.env.NEXT_PUBLIC_API_URL_8000 || 'http://127.0.0.1:8000';
 
-// const socket = io(URL_);
-export default function Reportspage(data:{data:{close:()=>void, init:File | undefined | string }}){
-    const subscribe = useSyncExternalStore(SubcribeToStore.subscribe, SubcribeToStore.getSnapshot,SubcribeToStore.getSnapshot);
+export default function Reportspage(data: { data: { close: () => void, init: File | undefined | string } }) {
+    const subscribe = useSyncExternalStore(SubcribeToStore.subscribe, SubcribeToStore.getSnapshot, SubcribeToStore.getSnapshot);
     const [socket] = useState(() => io(URL_, { autoConnect: true }));
-  
+    const [syncTrigger, setSyncTrigger] = useState<number>(0);
+
     useEffect(() => {
         if (subscribe.length === 0) return;
 
@@ -35,7 +34,7 @@ export default function Reportspage(data:{data:{close:()=>void, init:File | unde
             console.log("disconnected-again");
         }
 
-        function onReceiveMessage(data:any) {
+        function onReceiveMessage(data: any) {
             const { username, msg, owner, points } = data;
             if (owner) {
                 SubcribeToStore.addmesg(data);
@@ -45,14 +44,20 @@ export default function Reportspage(data:{data:{close:()=>void, init:File | unde
             }
         }
 
-        function onYouJustJoined(data:any) {
+        function onYouJustJoined(data: any) {
             const { group, owner } = data;
         }
 
-        function onReceiveEdited(data:any) {
+        function onReceiveEdited(data: any) {
             const { username, groupname, msg, owner, color } = data;
             console.log(JSON.parse(msg));
             SubcribeToStore.addeditdata(data);
+        }
+
+        function onRequestSync() {
+            if (subscribe[0][0]?.owner === true) {
+                setSyncTrigger(prev => prev + 1);
+            }
         }
 
         // Register event listeners
@@ -61,11 +66,12 @@ export default function Reportspage(data:{data:{close:()=>void, init:File | unde
         socket.on('receive_message', onReceiveMessage);
         socket.on('youjsutjoined', onYouJustJoined);
         socket.on('recieve_editted', onReceiveEdited);
+        socket.on('request_sync', onRequestSync);
 
         // Connect if not already connected
         if (!socket.connected) {
             socket.connect();
-            console.log("is-just-connected")
+            console.log("is-just-connected");
         }
 
         // Clean up event listeners on component unmount
@@ -75,50 +81,49 @@ export default function Reportspage(data:{data:{close:()=>void, init:File | unde
             socket.off('receive_message', onReceiveMessage);
             socket.off('youjsutjoined', onYouJustJoined);
             socket.off('recieve_editted', onReceiveEdited);
+            socket.off('request_sync', onRequestSync);
         };
     }, [subscribe, socket]);
 
-    const getcurrentData = (data:[], check:boolean, editeddata:[])=>{
-        if(check){
+    const getcurrentData = (data: [], check: boolean, editeddata: []) => {
+        if (check) {
             socket.emit('sendGroupMessage', {
-                username:subscribe[0][0].username,
-                groupname:subscribe[0][0].groupname,
-                msg:JSON.stringify(data),
-                owner:subscribe[0][0].owner,
+                username: subscribe[0][0].username,
+                groupname: subscribe[0][0].groupname,
+                msg: JSON.stringify(data),
+                owner: subscribe[0][0].owner,
             });
-        }else{
-            socket.emit("sendchanges_masters",{
-                username:subscribe[0][0].username,
-                groupname:subscribe[0][0].groupname,
-                msg:JSON.stringify(editeddata),
-                owner:subscribe[0][0].owner,
-                color:subscribe[0][0].color,
-            })
+        } else {
+            socket.emit("sendchanges_masters", {
+                username: subscribe[0][0].username,
+                groupname: subscribe[0][0].groupname,
+                msg: JSON.stringify(editeddata),
+                owner: subscribe[0][0].owner,
+                color: subscribe[0][0].color,
+            });
         }
-    }
+    };
 
-    // Empty dependency array ensures this runs once
-    return(
+    return (
         <div id="editorCon" className="absolute z-11 bg-white top-0 w-full h-full">
-            <div className="m-5 mt-2" onClick={()=>{data.data.close()}}> <FontAwesomeIcon icon={faArrowLeft} /></div>
-            {subscribe[0]?
-            <>
-                <div id="jusconnected" className="ml-7 w-45">
-                    <p> user : {subscribe[0][0].username} </p>
-                    <p> group : {subscribe[0][0].groupname} </p>
-                </div>
-                <div className="z-11 relative w-full top-0 bg-white h-fit">            
-                    <div className="flex justify-center flex-wrap">
-                        <div className="p-5 lg:w-[80%]">
-                            <Mycomponent sendtext={getcurrentData} init={data.data.init} />       
-                        </div> 
+            <div className="m-5 mt-2" onClick={() => { data.data.close(); }}> <FontAwesomeIcon icon={faArrowLeft} /></div>
+            {subscribe[0] ?
+                <>
+                    <div id="jusconnected" className="ml-7 w-45">
+                        <p> user : {subscribe[0][0].username} </p>
+                        <p> group : {subscribe[0][0].groupname} </p>
                     </div>
-                </div>   
-            </>
-            :
-            <> please log in </>
+                    <div className="z-11 relative w-full top-0 bg-white h-fit">
+                        <div className="flex justify-center flex-wrap">
+                            <div className="p-5 lg:w-[80%]">
+                                <Mycomponent sendtext={getcurrentData} init={data.data.init} syncTrigger={syncTrigger} />
+                            </div>
+                        </div>
+                    </div>
+                </>
+                :
+                <> please log in </>
             }
-            
         </div>
-    )
+    );
 }

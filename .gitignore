@@ -1,2 +1,120 @@
-C:\Users\HP\Desktop\editorApp\TextEditorApp\Ai\.env
-C:\Users\HP\Desktop\editorApp\TextEditorApp\Ai\env
+TextEditorApp\Ai\.env
+TextEditorApp\Ai\env
+
+# ==========================================
+# OS & IDE / Editor Files
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+TextEditorApp\learn_ms\.env
+TextEditorApp\learn_ms\.env.local
+TextEditorApp\learn_ms\.env.development
+TextEditorApp\learn_ms\.env.test
+TextEditorApp\learn_ms\.env.production
+TextEditorApp\learn_ms\.env*.local
+TextEditorApp\learn_ms\*.pem
+TextEditorApp\learn_ms\*.key
+
+# ==========================================
+# Python / FastAPI
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Packaging & Distribution
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing, Linting & Type Checking
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Local Databases (if using SQLite for dev)
+*.sqlite
+*.sqlite3
+*.db
+
+# ==========================================
+# Node.js / Express & Next.js
+# ==========================================
+# Dependencies
+TextEditorApp\nodejslms\node_modules/
+TextEditorApp\nodejslms\.pnp
+TextEditorApp\nodejslms\.pnp.js
+TextEditorApp\nodejslms\.yarn/install-state.gz
+
+TextEditorApp\nodejslms\node_modules\node_modules/
+TextEditorApp\nodejslms\.pnp\.pnp
+TextEditorApp\nodejslms\.pnp.js\.pnp.js
+TextEditorApp\nodejslms\.yarn/install-state.gz\.yarn/install-state.gz
+
+# Next.js build & cache
+TextEditorApp\learn_ms\.next/
+TextEditorApp\learn_ms\out/
+TextEditorApp\learn_ms\next-env.d.ts
+
+# Production builds & logs
+TextEditorApp\learn_ms\build/
+TextEditorApp\learn_ms\dist/
+TextEditorApp\learn_ms\npm-debug.log*
+TextEditorApp\learn_ms\yarn-debug.log*
+TextEditorApp\learn_ms\yarn-error.log*
+TextEditorApp\learn_ms\pnpm-debug.log*
+TextEditorApp\learn_ms\lerna-debug.log*
+
+# Runtime data & caches
+pids
+*.pid
+*.seed
+*.pid.lock
+.npm
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Testing & Coverage
+coverage/
+.nyc_output
+
+# Vercel / Deployment
+.vercel
