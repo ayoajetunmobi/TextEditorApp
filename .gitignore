@@ -1,5 +1,5 @@
-TextEditorApp\Ai\.env
-TextEditorApp\Ai\env
+Ai\.env
+Ai\env
 
 # ==========================================
 # OS & IDE / Editor Files
@@ -15,14 +15,14 @@ Thumbs.db
 # ==========================================
 # Environment Variables & Secrets
 # ==========================================
-TextEditorApp\learn_ms\.env
-TextEditorApp\learn_ms\.env.local
-TextEditorApp\learn_ms\.env.development
-TextEditorApp\learn_ms\.env.test
-TextEditorApp\learn_ms\.env.production
-TextEditorApp\learn_ms\.env*.local
-TextEditorApp\learn_ms\*.pem
-TextEditorApp\learn_ms\*.key
+learn_ms\.env
+learn_ms\.env.local
+learn_ms\.env.development
+learn_ms\.env.test
+learn_ms\.env.production
+learn_ms\.env*.local
+learn_ms\*.pem
+learn_ms\*.key
 
 # ==========================================
 # Python / FastAPI
@@ -78,29 +78,29 @@ dmypy.json
 # Node.js / Express & Next.js
 # ==========================================
 # Dependencies
-TextEditorApp\nodejslms\node_modules/
-TextEditorApp\nodejslms\.pnp
-TextEditorApp\nodejslms\.pnp.js
-TextEditorApp\nodejslms\.yarn/install-state.gz
+nodejslms\node_modules/
+nodejslms\.pnp
+nodejslms\.pnp.js
+nodejslms\.yarn/install-state.gz
 
-TextEditorApp\nodejslms\node_modules\node_modules/
-TextEditorApp\nodejslms\.pnp\.pnp
-TextEditorApp\nodejslms\.pnp.js\.pnp.js
-TextEditorApp\nodejslms\.yarn/install-state.gz\.yarn/install-state.gz
+nodejslms\node_modules\node_modules/
+nodejslms\.pnp\.pnp
+nodejslms\.pnp.js\.pnp.js
+nodejslms\.yarn/install-state.gz\.yarn/install-state.gz
 
 # Next.js build & cache
-TextEditorApp\learn_ms\.next/
-TextEditorApp\learn_ms\out/
-TextEditorApp\learn_ms\next-env.d.ts
+learn_ms\.next/
+learn_ms\out/
+learn_ms\next-env.d.ts
 
 # Production builds & logs
-TextEditorApp\learn_ms\build/
-TextEditorApp\learn_ms\dist/
-TextEditorApp\learn_ms\npm-debug.log*
-TextEditorApp\learn_ms\yarn-debug.log*
-TextEditorApp\learn_ms\yarn-error.log*
-TextEditorApp\learn_ms\pnpm-debug.log*
-TextEditorApp\learn_ms\lerna-debug.log*
+learn_ms\build/
+learn_ms\dist/
+learn_ms\npm-debug.log*
+learn_ms\yarn-debug.log*
+learn_ms\yarn-error.log*
+learn_ms\pnpm-debug.log*
+learn_ms\lerna-debug.log*
 
 # Runtime data & caches
 pids
