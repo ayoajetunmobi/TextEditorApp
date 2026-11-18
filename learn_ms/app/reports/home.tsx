@@ -490,6 +490,8 @@ export const Home = () => {
                 </div>
             )}
             <Link id="links" href='./reports'></Link>
+             <div></div>
         </div>
+       
     );
 };
